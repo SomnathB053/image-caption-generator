@@ -15,6 +15,6 @@ def download_unzip_url(url, extract_dir):
 
 if __name__ == '__main__':
   print('Downloading dataset - Flicker8k')
-  download_unzip_url(dataset_url,os.path.join(extract_dir, 'dataset/images'))
+  download_unzip_url(dataset_url,os.path.join(extract_dir, '../dataset/images'))
   print('Downloading text - Flicker8k')
-  download_unzip_url(text_url, os.path.join(extract_dir, 'dataset/annot'))
+  download_unzip_url(text_url, os.path.join(extract_dir, '../dataset/annot'))

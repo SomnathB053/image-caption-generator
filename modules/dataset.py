@@ -5,7 +5,7 @@ import torchvision.transforms as T
 import pandas as pd
 import torch
 import cv2
-
+import os
 
 def image_caption_dict(FILENAME, tokenizer):
     caption_map= {}
@@ -13,6 +13,7 @@ def image_caption_dict(FILENAME, tokenizer):
     with open(FILENAME) as f:
         for line in f:
             line = line.rstrip('\n')
+            line = line.rstrip(' .')
             img_name, caption = line.split('\t')
             
             img_name = img_name.split('#')[0]
@@ -44,35 +45,36 @@ def image_caption_dict(FILENAME, tokenizer):
 
 
 class Image_caption_dataset(Dataset):
-    def __init__(self, tokenizer, vocab, dataframe, img_size, seq_len):
+    def __init__(self, tokenizer, vocab, dataframe, seq_len):
         super().__init__()
         self.tokenizer = tokenizer
         self. dataframe = dataframe
-        self.img_size = img_size
+        #self.img_size = img_size
         self.seq_len = seq_len
         self.vocab = vocab
         self.transform = T.Compose([
-            T.Resize(240, 320),
-            T.ToTensor()
-        ])
+            T.ToTensor(),
+            T.Pad((150)),
+            T.CenterCrop((400,400)),
+
         
-
-
-
-    def __get_item__(self, index):
+        ])
+        self.image_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dataset', 'images', 'Flicker8k_Dataset')
+        
+    def __getitem__(self, index):
 
         pad_idx = self.vocab["<pad>"]
         sos_idx = self.vocab["<bos>"]
         eos_idx = self.vocab["<eos>"]
         pad_starts = None
-        if torch.is_tensor():
+        if torch.is_tensor(index):
             index = index.item()
         image_name, caption_list = self.dataframe.iloc[index]
-        image = cv2.imread('dataset/images/'+ image_name)
+        image = cv2.imread(os.path.join(self.image_folder,image_name))
         tokens_array = []
         pad_ignore_mask= []
         for idx, e in enumerate(caption_list):
-            tokens  = [self.vocab(token) for token in self.tokenizer(e)]
+            tokens  = self.vocab(self.tokenizer(e))
             tokens = [sos_idx] + tokens +[eos_idx]
 
             if len(tokens) < self.seq_len:
@@ -87,9 +89,12 @@ class Image_caption_dataset(Dataset):
             if pad_starts is not None:
                 mask[pad_starts:] = True
             pad_ignore_mask.append(mask)
-
+        assert image is not None, 'image empty'
+        assert tokens_array is not None, 'token empty'
+        assert caption_list is not None, 'list empty'
+        assert pad_ignore_mask is not None, 'mask empty'
         out_dict = {
-            "image": image,
+            "image": self.transform(image),
             "captions_tokens": tokens_array,
             "captions": caption_list,
             "pad_ignore_mask": pad_ignore_mask,
@@ -97,11 +102,10 @@ class Image_caption_dataset(Dataset):
 
         return out_dict
     
-
     def __len__(self):
         return len(self.dataframe)
     
-TRAIN_TEST_SPLIT =0.8
+
 
 
 
