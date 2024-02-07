@@ -64,7 +64,7 @@ class Image_caption_dataset(Dataset):
     def __getitem__(self, index):
 
         pad_idx = self.vocab["<pad>"]
-        sos_idx = self.vocab["<bos>"]
+        sos_idx = self.vocab["<sos>"]
         eos_idx = self.vocab["<eos>"]
         pad_starts = None
         if torch.is_tensor(index):
@@ -76,19 +76,22 @@ class Image_caption_dataset(Dataset):
         for idx, e in enumerate(caption_list):
             tokens  = self.vocab(self.tokenizer(e))
             tokens = [sos_idx] + tokens +[eos_idx]
-
+            
             if len(tokens) < self.seq_len:
                 pad_starts = len(tokens)
                 tokens = tokens + [pad_idx]*(self.seq_len - len(tokens))
             else:
                 tokens = tokens[:self.seq_len-1] + [eos_idx]
 
-
             tokens_array.append(tokens)
+            
             mask = torch.zeros(self.seq_len)
             if pad_starts is not None:
                 mask[pad_starts:] = True
             pad_ignore_mask.append(mask)
+        tokens_array = torch.LongTensor(tokens_array)
+        pad_ignore_mask = torch.stack(pad_ignore_mask)
+        
         assert image is not None, 'image empty'
         assert tokens_array is not None, 'token empty'
         assert caption_list is not None, 'list empty'

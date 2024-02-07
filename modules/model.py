@@ -3,8 +3,7 @@ import torch
 import torch.nn as nn
 
 
-resnet =  models.resnet50(weights= models.ResNet50_Weights.IMAGENET1K_V2)
-resnet_backbone = torch.nn.Sequential(*(list(resnet.children())[:-1])+ [nn.Flatten()])
+
 
 class ImageCaptionGen(nn.Module):
     def __init__(self, img_size, cnn_backbone, vocab_len,  seq_len, d_model, n_decode, n_head, fc_dim, dropout):
@@ -51,7 +50,8 @@ class ImageCaptionGen(nn.Module):
         causal_mask = nn.Transformer.generate_square_subsequent_mask(x.shape[1])
 
 
-        x = self.decoder(x, decoder_input, tgt_mask = causal_mask, tgt_key_padding_mask = ignore_pad_mask)
+        x = self.decoder(x, decoder_input, tgt_mask = causal_mask, tgt_key_padding_mask = ignore_pad_mask) #[batch, seq_len, d_model]
+        
 
         out = self.linear(x)
         return out
