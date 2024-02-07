@@ -36,7 +36,8 @@ def train(train_split=TRAIN_TEST_SPLIT, EPOCHS=1):
     TRAIN_DATASET = Image_caption_dataset(tokenizer, vocab, TRAIN_DATAFRAME, 32)
     TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, 32, shuffle=True)
 
-    model = ImageCaptionGen(400,resnet_backbone, len(vocab),32, 512, 1, 2, 512, 0)
+    model = ImageCaptionGen(400,resnet_backbone, len(vocab),32, 512, 1, 2, 512, 0.1)
+    model.train()
     criterion =nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
 
@@ -44,25 +45,25 @@ def train(train_split=TRAIN_TEST_SPLIT, EPOCHS=1):
         print("beginning epoch 1...")
         for _, data in enumerate(tqdm(TRAIN_DATALOADER)):
             images = data['image']
-            print('Image tensor shape: ', images.shape)
+            #print('Image tensor shape: ', images.shape)
             tokens = data['captions_tokens']
-            print('Token tensor shape: ', tokens.shape)
+            #print('Token tensor shape: ', tokens.shape)
             masks = data['pad_ignore_mask']
-            print('Mask tensor shape', masks.shape)
+            #print('Mask tensor shape', masks.shape)
 
             tokens_sub_batches = torch.split(tokens, 1, 1)
             masks_sub_batches = torch.split(masks, 1, 1)
             
             avg_loss=0
             for sub_batch in range(len(tokens_sub_batches)):
-                print(f'training sub batch {epoch}- {_}-{sub_batch}...')
+                print(f'Training sub-batch {epoch}--{_}--{sub_batch}->->->')
                 pred = model(images, tokens_sub_batches[sub_batch].squeeze(1)[:, :-1], masks_sub_batches[sub_batch].squeeze(1)[:, :-1])
-                print("pred shape: ", pred.shape, type(pred))
+                #print("pred shape: ", pred.shape, type(pred))
                 pred = pred.contiguous().view(-1, len(vocab))
 
-                print("reshaped pred shape: ", pred.shape)
+                #print("reshaped pred shape: ", pred.shape)
                 labels = tokens_sub_batches[sub_batch].squeeze(1)[:, 1:]
-                print('labels shape', labels.shape, type(labels))
+                #print('labels shape', labels.shape, type(labels))
                 labels = labels.contiguous().view(-1)
                 
                 loss = criterion(pred, labels)
