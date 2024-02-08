@@ -1,10 +1,3 @@
-'''
-create dataset
-split dataset
-create dataloader
-epoch iter
-train 
-'''
 from torchtext.data import get_tokenizer
 from dataset import image_caption_dict, Image_caption_dataset
 from torch.utils.data import DataLoader
@@ -17,16 +10,11 @@ from tqdm import tqdm
 
 TRAIN_TEST_SPLIT = 0.8
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 resnet =  models.resnet50(weights= models.ResNet50_Weights.IMAGENET1K_V2)
 resnet_backbone = torch.nn.Sequential(*(list(resnet.children())[:-1])+ [nn.Flatten()])
-
-
-
-'''TEST_DATAFRAME = dataframe[int(len(dataframe)*TRAIN_TEST_SPLIT):]
-TEST_DATASET = Image_caption_dataset(tokenizer, vocab, TEST_DATAFRAME, 32)
-TEST_DATALOADER =  DataLoader(TEST_DATASET, 16, shuffle=True)
-'''
 
 
 def train(train_split=TRAIN_TEST_SPLIT, EPOCHS=1):
@@ -34,47 +22,46 @@ def train(train_split=TRAIN_TEST_SPLIT, EPOCHS=1):
     dataframe, vocab = image_caption_dict('dataset/annot/Flickr8k.token.txt', tokenizer)
     TRAIN_DATAFRAME = dataframe[:int(len(dataframe)*train_split)]
     TRAIN_DATASET = Image_caption_dataset(tokenizer, vocab, TRAIN_DATAFRAME, 32)
-    TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, 32, shuffle=True)
+    TRAIN_DATALOADER = DataLoader(TRAIN_DATASET, 64, shuffle=False)
 
-    model = ImageCaptionGen(400,resnet_backbone, len(vocab),32, 512, 1, 2, 512, 0.1)
+    model = ImageCaptionGen(img_size=400,cnn_backbone=resnet_backbone, vocab_len=len(vocab), seq_len=32, d_model=512, n_decode=2, n_head=8, fc_dim=1024,dropout= 0.1)
+    model.to(device)
+
     model.train()
+    print(f'-------------------COMPUTE DEVICE IS {device}------------------------')
     criterion =nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.000005)
 
     for epoch in range(EPOCHS):
         print("beginning epoch 1...")
-        for _, data in enumerate(tqdm(TRAIN_DATALOADER)):
-            images = data['image']
-            #print('Image tensor shape: ', images.shape)
+        batch_loader = tqdm(enumerate(TRAIN_DATALOADER), desc= 'begining batch training', postfix='current_loss = NA ')
+        for _, data in batch_loader:
+            images = data['image'].to(device)
             tokens = data['captions_tokens']
-            #print('Token tensor shape: ', tokens.shape)
             masks = data['pad_ignore_mask']
-            #print('Mask tensor shape', masks.shape)
-
             tokens_sub_batches = torch.split(tokens, 1, 1)
             masks_sub_batches = torch.split(masks, 1, 1)
-            
             avg_loss=0
             for sub_batch in range(len(tokens_sub_batches)):
-                print(f'Training sub-batch {epoch}--{_}--{sub_batch}->->->')
-                pred = model(images, tokens_sub_batches[sub_batch].squeeze(1)[:, :-1], masks_sub_batches[sub_batch].squeeze(1)[:, :-1])
-                #print("pred shape: ", pred.shape, type(pred))
+                batch_loader.set_description_str(f'Training sub-batch {epoch}--{_}--{sub_batch}->->->', refresh=True)
+                tokens_sub_batches_i = tokens_sub_batches[sub_batch].squeeze(1)[:, :-1].to(device)
+                masks_sub_batches_i = masks_sub_batches[sub_batch].squeeze(1)[:, :-1].to(device)
+                pred = model(images, tokens_sub_batches_i, masks_sub_batches_i)
                 pred = pred.contiguous().view(-1, len(vocab))
-
-                #print("reshaped pred shape: ", pred.shape)
                 labels = tokens_sub_batches[sub_batch].squeeze(1)[:, 1:]
-                #print('labels shape', labels.shape, type(labels))
-                labels = labels.contiguous().view(-1)
-                
+                labels = labels.contiguous().view(-1).to(device)
                 loss = criterion(pred, labels)
+                batch_loader.set_postfix_str(f'Current loss: {loss.item()}')
                 avg_loss+= loss.item()
                 loss.backward()
                 optimizer.step()
-            print('print avg loss', avg_loss/5)
             avg_loss=0
+    torch.save(model.state_dict(),'imCgen.pt' )
 
 
-train()
+if __name__ == '__main__':
+    train()
+    print("Training successful. saved weights as imCgen.pt")
 
                 
 
