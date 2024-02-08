@@ -40,4 +40,4 @@ Other required libraries (specified in requirements.txt)
 
 Hyperparameters are `img_size`, `cnn_backbone`, `seq_len`, `d_model`, `n_decode`, `n_head`, `fc_dim`,`dropout`. 
 Can be changed in train.py
-Can be trained on colab. Check out train_image_capgen.ipynb file.
+Can be trained on colab. Check out [train_image_capgen.ipynb](https://colab.research.google.com/drive/1O6HklQzhcftC5-zP4xk2Ij_ZL90wK6x1?usp=sharing).
